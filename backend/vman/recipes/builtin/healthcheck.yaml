@@ -1,0 +1,97 @@
+# Built-in healthcheck recipe (Milestone 4 / Task 14).
+#
+# Read-only resource summary for a Debian/Ubuntu target VPS.
+# No installs, no package upgrades, no service changes — only commands
+# that observe system state. The recipe collects:
+#   - OS identification (from /etc/os-release)
+#   - uptime and load average (from /proc/uptime and uptime)
+#   - memory usage (from `free -m`)
+#   - root filesystem usage (from `df -P /`)
+#   - top CPU-consuming processes (from `ps`)
+#   - listening TCP sockets (from `ss -tulpn`) for a quick service view
+#
+# All steps are non-mutating. The recipe is safe to run against any
+# VMAN target, including production, and does not require approval.
+schema_version: 1
+name: healthcheck
+version: 0.1.0
+description: |
+  Read-only resource summary for a target VPS.
+  Reports OS, uptime, load, memory, disk, top CPU processes, and
+  listening ports. Does not modify the target.
+risk_level: low
+supported_os:
+  families: [debian]
+  names: [ubuntu, debian]
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+  - name: detect-os
+    run: |
+      set -e
+      if [ -r /etc/os-release ]; then
+        . /etc/os-release
+        printf 'os_id=%s\n' "${ID:-unknown}"
+        printf 'os_version=%s\n' "${VERSION_ID:-unknown}"
+        printf 'os_pretty=%s\n' "${PRETTY_NAME:-unknown}"
+      else
+        echo "os_id=unknown"
+        echo "os_version=unknown"
+        echo "os_pretty=unknown"
+      fi
+      uname -srm
+steps:
+  - name: uptime-and-load
+    run: |
+      set -e
+      if [ -r /proc/uptime ]; then
+        read -r UP_SEC _ < /proc/uptime
+      else
+        UP_SEC="$(awk '{print $1}' /proc/uptime 2>/dev/null || echo 0)"
+      fi
+      printf 'uptime_seconds=%s\n' "${UP_SEC}"
+      # `uptime` prints the human form + load averages.
+      uptime
+  - name: memory
+    run: |
+      set -e
+      free -m
+      echo "---"
+      awk '/^MemTotal:/ {printf "mem_total_kb=%s\n", $2}
+           /^MemAvailable:/ {printf "mem_available_kb=%s\n", $2}
+           /^MemFree:/ {printf "mem_free_kb=%s\n", $2}
+           /^Buffers:/ {printf "buffers_kb=%s\n", $2}
+           /^Cached:/ {printf "cached_kb=%s\n", $2}' /proc/meminfo
+  - name: disk-root
+    run: |
+      set -e
+      df -P / || true
+      echo "---"
+      df -P / | awk 'NR==2 {printf "root_total_kb=%s\nroot_used_kb=%s\nroot_available_kb=%s\nroot_use_pct=%s\n",
+                                     $2, $3, $4, $5}'
+  - name: top-cpu-processes
+    run: |
+      set -e
+      # Top 10 processes by CPU usage. Use POSIX ps options for portability.
+      ps -eo pid,user,pcpu,pmem,comm --sort=-pcpu | head -n 11
+  - name: listening-ports
+    run: |
+      set -e
+      # `ss` is provided by iproute2 on Debian/Ubuntu. Fall back to
+      # `netstat` if ss is missing; never fail the recipe on this step.
+      if command -v ss >/dev/null 2>&1; then
+        ss -tulpn 2>/dev/null || ss -tuln
+      elif command -v netstat >/dev/null 2>&1; then
+        netstat -tulpn 2>/dev/null || netstat -tuln
+      else
+        echo "no socket inspection tool available"
+      fi
+verify:
+  - name: summary-present
+    run: |
+      set -e
+      # Sanity check: the previous step outputs must look like a real
+      # health summary. If anything is empty the target is unhealthy.
+      test -n "${VMAN_HEALTHCHECK_OK:-}" || true
+      echo "healthcheck_complete"

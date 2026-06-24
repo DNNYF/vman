@@ -1,0 +1,67 @@
+name: security
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel in-progress security scans when a new commit lands on the same ref.
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  gitleaks:
+    name: gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  python-security:
+    name: python security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-security-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Install backend and security tools
+        run: |
+          uv pip install --system -e ".[dev]"
+          uv pip install --system bandit pip-audit semgrep
+
+      - name: Bandit
+        run: bandit -r backend/vman -c pyproject.toml
+
+      - name: Semgrep
+        run: semgrep scan --config p/python --config p/secrets --error --exclude .venv --exclude frontend/node_modules
+
+      - name: Export audit requirements
+        run: uv export --frozen --extra dev --no-emit-project --no-hashes --format requirements.txt --output-file /tmp/vman-audit-requirements.txt
+
+      - name: pip-audit
+        run: pip-audit --strict --requirement /tmp/vman-audit-requirements.txt

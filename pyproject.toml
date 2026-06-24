@@ -1,0 +1,113 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vman"
+version = "0.1.0"
+description = "Secure agentless VPS fleet manager"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "TBD" }
+authors = [{ name = "VMAN Maintainers" }]
+keywords = ["vps", "ssh", "fleet", "security", "agentless"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: TBD",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: System :: Systems Administration",
+]
+
+# Runtime dependencies intentionally minimal at Milestone 0.
+# Heavier deps (sqlalchemy, asyncssh, typer, fastmcp) are added in later tasks.
+dependencies = [
+  "fastapi>=0.110,<1.0",
+  "pydantic>=2.6,<3.0",
+  "pydantic-settings>=2.2,<3.0",
+  "uvicorn[standard]>=0.27,<1.0",
+  "httpx>=0.27,<1.0",  # used by tests and the SSH-free HTTP client later
+  "sqlalchemy>=2.0,<2.1",
+  "alembic>=1.13,<2.0",
+  "cryptography>=48.0.1,<49.0",
+  "argon2-cffi>=23.0,<24.0",
+  "typer>=0.12,<1.0",
+  "mcp>=1.0,<2.0",
+  "paramiko>=3.0,<6.0",
+]
+
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0.3,<10.0",
+  "pytest-asyncio>=1.3,<2.0",
+  "pytest-cov>=4.1,<6.0",
+  "ruff>=0.5,<1.0",
+  "mypy>=1.10,<2.0",
+  "types-requests",
+  "types-PyYAML",
+]
+
+[project.scripts]
+vmanctl = "vman.cli.main:app"
+vman-api = "vman.main:run"
+vman-worker = "vman.worker:main"
+vman-mcp = "vman.mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["vman*"]
+
+[tool.setuptools.package-data]
+vman = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
+filterwarnings = [
+  "error",
+  # Pydantic v2 / FastAPI / starlette sometimes emit deprecation warnings
+  # from third-party deps. They are not actionable from our side.
+  "ignore::DeprecationWarning:fastapi.*",
+  "ignore::DeprecationWarning:starlette.*",
+  "ignore:Using `httpx` with `starlette\\.testclient` is deprecated.*:Warning",
+  "ignore::DeprecationWarning:httpx.*",
+  "ignore::pydantic.PydanticDeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["backend", "tests"]
+
+[tool.ruff.lint]
+# Conservative starter set; expand as codebase grows.
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+  "SIM", # flake8-simplify
+  "S",   # flake8-bandit (security)
+]
+# Allow tests to use assert and other patterns bandit would flag.
+"per-file-ignores" = { "tests/**" = ["S101", "S105", "S106"], "**/__init__.py" = ["F401"] }
+
+[tool.ruff.lint.isort]
+known-first-party = ["vman"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "backend"
+files = ["backend/vman"]
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true

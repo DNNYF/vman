@@ -1,0 +1,25 @@
+title = "VMAN gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Repository-local generated or vendored paths ignored by gitleaks"
+paths = [
+  '''^\.venv/''',
+  '''^frontend/node_modules/''',
+  '''^frontend/dist/''',
+  '''^htmlcov/''',
+  '''^coverage\.xml$''',
+]
+
+[[allowlists]]
+description = "Intentional redaction fixtures in tests"
+paths = [
+  '''^tests/''',
+]
+regexes = [
+  '''AKIAAB\.\.\.MNOP''',
+  '''abcdef1234567890''',
+  '''BEGIN RSA PRIVATE KEY''',
+]

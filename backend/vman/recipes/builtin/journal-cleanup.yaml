@@ -1,0 +1,50 @@
+schema_version: 1
+name: journal-cleanup
+version: 0.1.0
+description: Vacuum old systemd journal entries.
+risk_level: medium
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: vacuum-journal
+  run: 'set -e
+
+    journalctl --disk-usage || true
+
+    journalctl --vacuum-time={{ keep_time }}
+
+    journalctl --disk-usage || true
+
+    '
+verify:
+- name: verify-journalctl
+  run: 'set -e
+
+    journalctl --disk-usage || true
+
+    '
+vars:
+  keep_time:
+    type: string
+    default: 7d
+    description: journalctl vacuum retention such as 7d or 500M

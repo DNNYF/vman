@@ -1,0 +1,43 @@
+schema_version: 1
+name: disk-usage
+version: 0.1.0
+description: Report disk usage and largest directories.
+risk_level: low
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: show-disk-usage
+  run: 'set -e
+
+    df -h
+
+    du -xhd1 / 2>/dev/null | sort -h | tail -n 20
+
+    '
+verify:
+- name: verify-df
+  run: 'set -e
+
+    df -P /
+
+    '

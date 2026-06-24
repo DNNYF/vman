@@ -1,0 +1,56 @@
+schema_version: 1
+name: install-caddy
+version: 0.1.0
+description: Install Caddy web server from the official Caddy APT repository.
+risk_level: medium
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: install-caddy
+  run: 'set -e
+
+    apt-get update
+
+    apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+
+    curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor
+    -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+
+    curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt > /etc/apt/sources.list.d/caddy-stable.list
+
+    apt-get update
+
+    apt-get install -y caddy
+
+    systemctl enable --now caddy
+
+    '
+verify:
+- name: verify-caddy
+  run: 'set -e
+
+    caddy version
+
+    systemctl is-active caddy
+
+    '

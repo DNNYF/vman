@@ -1,0 +1,51 @@
+schema_version: 1
+name: ssl-cert-check
+version: 0.1.0
+description: Check HTTPS certificate expiry for a hostname.
+risk_level: low
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: check-certificate-expiry
+  run: 'set -e
+
+    echo | openssl s_client -servername "{{ hostname }}" -connect "{{ hostname }}:{{
+    port }}" 2>/dev/null | openssl x509 -noout -subject -issuer -dates
+
+    '
+verify:
+- name: verify-openssl
+  run: 'set -e
+
+    command -v openssl >/dev/null
+
+    '
+vars:
+  hostname:
+    type: string
+    default: example.com
+    description: Hostname to inspect
+  port:
+    type: int
+    default: 443
+    description: TLS port

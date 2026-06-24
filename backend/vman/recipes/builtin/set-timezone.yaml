@@ -1,0 +1,46 @@
+schema_version: 1
+name: set-timezone
+version: 0.1.0
+description: Set system timezone.
+risk_level: medium
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: set-timezone
+  run: 'set -e
+
+    timedatectl set-timezone "{{ timezone }}"
+
+    '
+verify:
+- name: verify-timezone
+  run: 'set -e
+
+    timedatectl | grep "{{ timezone }}"
+
+    '
+vars:
+  timezone:
+    type: string
+    default: Asia/Jakarta
+    description: IANA timezone

@@ -1,0 +1,52 @@
+schema_version: 1
+name: create-sudo-user
+version: 0.1.0
+description: Create a sudo-capable user.
+risk_level: high
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: true
+  forbidden_on_environments:
+  - production
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: create-user-and-grant-sudo
+  run: 'set -e
+
+    id "{{ username }}" >/dev/null 2>&1 || adduser --disabled-password --gecos ""
+    "{{ username }}"
+
+    usermod -aG sudo "{{ username }}"
+
+    '
+verify:
+- name: verify-sudo-user
+  run: 'set -e
+
+    id "{{ username }}"
+
+    groups "{{ username }}" | grep -w sudo
+
+    '
+vars:
+  username:
+    type: string
+    default: deploy
+    description: User to create

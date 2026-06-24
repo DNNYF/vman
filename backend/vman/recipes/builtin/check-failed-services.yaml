@@ -1,0 +1,41 @@
+schema_version: 1
+name: check-failed-services
+version: 0.1.0
+description: List failed systemd units without changing the host.
+risk_level: low
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: list-failed-services
+  run: 'set -e
+
+    systemctl --failed --no-pager || true
+
+    '
+verify:
+- name: verify-systemctl-available
+  run: 'set -e
+
+    command -v systemctl >/dev/null
+
+    '

@@ -1,0 +1,48 @@
+schema_version: 1
+name: install-python-uv
+version: 0.1.0
+description: Install Python 3 tooling and uv.
+risk_level: medium
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: install-python-uv
+  run: 'set -e
+
+    apt-get update
+
+    apt-get install -y python3 python3-venv python3-pip curl ca-certificates
+
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    '
+verify:
+- name: verify-python-uv
+  run: 'set -e
+
+    python3 --version
+
+    if command -v uv >/dev/null 2>&1; then uv --version; else test -x "$HOME/.local/bin/uv"
+    && "$HOME/.local/bin/uv" --version; fi
+
+    '

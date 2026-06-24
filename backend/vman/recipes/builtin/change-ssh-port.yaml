@@ -1,0 +1,60 @@
+schema_version: 1
+name: change-ssh-port
+version: 0.1.0
+description: Change sshd listening port and open it in UFW. Confirm provider firewall
+  first.
+risk_level: high
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: true
+  forbidden_on_environments:
+  - production
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: change-sshd-port
+  run: 'set -e
+
+    install -d /etc/ssh/sshd_config.d
+
+    cat > /etc/ssh/sshd_config.d/98-vman-port.conf <<EOF
+
+    Port {{ ssh_port }}
+
+    EOF
+
+    if command -v ufw >/dev/null 2>&1; then ufw allow {{ ssh_port }}/tcp; fi
+
+    sshd -t
+
+    systemctl reload ssh || systemctl reload sshd
+
+    '
+verify:
+- name: verify-sshd-port
+  run: 'set -e
+
+    sshd -T | grep "^port {{ ssh_port }}$"
+
+    '
+vars:
+  ssh_port:
+    type: int
+    default: 22144
+    description: New SSH TCP port

@@ -1,0 +1,11 @@
+{
+  "name": "vman",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure agentless VPS fleet manager (monorepo root).",
+  "scripts": {
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:test": "npm --prefix frontend run test"
+  }
+}

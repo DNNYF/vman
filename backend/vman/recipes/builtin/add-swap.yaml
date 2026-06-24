@@ -1,0 +1,59 @@
+schema_version: 1
+name: add-swap
+version: 0.1.0
+description: Create and enable a swapfile if one is not already present.
+risk_level: medium
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: create-swapfile
+  run: 'set -e
+
+    if swapon --show=NAME --noheadings | grep -q .; then swapon --show; exit 0; fi
+
+    fallocate -l {{ size_mb }}M /swapfile || dd if=/dev/zero of=/swapfile bs=1M count={{
+    size_mb }}
+
+    chmod 600 /swapfile
+
+    mkswap /swapfile
+
+    swapon /swapfile
+
+    grep -q "^/swapfile " /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab
+
+    '
+verify:
+- name: verify-swap
+  run: 'set -e
+
+    swapon --show
+
+    free -m
+
+    '
+vars:
+  size_mb:
+    type: int
+    default: 2048
+    description: Swapfile size in MiB

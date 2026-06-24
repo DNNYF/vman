@@ -1,0 +1,65 @@
+schema_version: 1
+name: setup-ssh-key
+version: 0.1.0
+description: Install an authorized SSH key for a local user.
+risk_level: high
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: true
+  forbidden_on_environments:
+  - production
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: install-authorized-key
+  run: 'set -e
+
+    USER_HOME=$(getent passwd "{{ username }}" | cut -d: -f6)
+
+    test -n "$USER_HOME"
+
+    install -d -m 700 -o "{{ username }}" -g "{{ username }}" "$USER_HOME/.ssh"
+
+    touch "$USER_HOME/.ssh/authorized_keys"
+
+    chown "{{ username }}:{{ username }}" "$USER_HOME/.ssh/authorized_keys"
+
+    chmod 600 "$USER_HOME/.ssh/authorized_keys"
+
+    grep -qxF "{{ public_key }}" "$USER_HOME/.ssh/authorized_keys" || printf "%s\n"
+    "{{ public_key }}" >> "$USER_HOME/.ssh/authorized_keys"
+
+    '
+verify:
+- name: verify-authorized-key
+  run: 'set -e
+
+    USER_HOME=$(getent passwd "{{ username }}" | cut -d: -f6)
+
+    grep -q "{{ public_key }}" "$USER_HOME/.ssh/authorized_keys"
+
+    '
+vars:
+  username:
+    type: string
+    default: deploy
+    description: Target user
+  public_key:
+    type: string
+    description: SSH public key to authorize

@@ -1,0 +1,49 @@
+schema_version: 1
+name: unattended-upgrades
+version: 0.1.0
+description: Enable unattended security upgrades.
+risk_level: medium
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: enable-unattended-upgrades
+  run: 'set -e
+
+    apt-get update
+
+    apt-get install -y unattended-upgrades apt-listchanges
+
+    dpkg-reconfigure -f noninteractive unattended-upgrades || true
+
+    systemctl enable --now unattended-upgrades
+
+    '
+verify:
+- name: verify-unattended-upgrades
+  run: 'set -e
+
+    systemctl is-enabled unattended-upgrades
+
+    test -f /etc/apt/apt.conf.d/20auto-upgrades
+
+    '

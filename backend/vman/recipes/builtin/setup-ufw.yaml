@@ -1,0 +1,56 @@
+schema_version: 1
+name: setup-ufw
+version: 0.1.0
+description: Install UFW and enable a minimal firewall policy.
+risk_level: medium
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: false
+  forbidden_on_environments: []
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: configure-ufw
+  run: 'set -e
+
+    apt-get update
+
+    apt-get install -y ufw
+
+    ufw default deny incoming
+
+    ufw default allow outgoing
+
+    ufw allow {{ ssh_port }}/tcp
+
+    ufw --force enable
+
+    '
+verify:
+- name: verify-ufw
+  run: 'set -e
+
+    ufw status verbose
+
+    '
+vars:
+  ssh_port:
+    type: int
+    default: 22
+    description: SSH port to keep open

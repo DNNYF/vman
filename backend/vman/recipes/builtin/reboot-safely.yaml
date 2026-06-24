@@ -1,0 +1,49 @@
+schema_version: 1
+name: reboot-safely
+version: 0.1.0
+description: Schedule a safe reboot through systemd.
+risk_level: high
+supported_os:
+  families:
+  - debian
+  names:
+  - ubuntu
+  - debian
+policy:
+  requires_approval: true
+  forbidden_on_environments:
+  - production
+preflight:
+- name: detect-debian-like-system
+  run: 'set -e
+
+    test -r /etc/os-release
+
+    . /etc/os-release
+
+    printf "os=%s version=%s\n" "${ID:-unknown}" "${VERSION_ID:-unknown}"
+
+    command -v sh >/dev/null
+
+    '
+steps:
+- name: schedule-reboot
+  run: 'set -e
+
+    systemd-run --on-active={{ delay_seconds }} --unit=vman-safe-reboot /sbin/reboot
+
+    systemctl list-timers --all | grep vman-safe-reboot || true
+
+    '
+verify:
+- name: verify-reboot-scheduled
+  run: 'set -e
+
+    systemctl status vman-safe-reboot.timer --no-pager || true
+
+    '
+vars:
+  delay_seconds:
+    type: int
+    default: 60
+    description: Seconds to wait before reboot
