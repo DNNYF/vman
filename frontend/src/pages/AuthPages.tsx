@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { HardDrive, LogIn, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/app/auth";
 import {
   Box,
   Flex,
@@ -47,6 +48,7 @@ const labelStyle = {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const auth = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,6 +60,7 @@ export function LoginPage() {
     setErrorMessage("");
     try {
       await client.post("/api/auth/login", { json: { username, password } });
+      await auth.refresh();
       navigate("/");
     } catch (err: any) {
       setErrorMessage(err.message || "Invalid username or password");
